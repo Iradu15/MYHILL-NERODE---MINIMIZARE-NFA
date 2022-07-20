@@ -1,0 +1,186 @@
+#include <iostream>
+#include <vector>
+#include <string.h>
+#include <fstream>
+#include <unordered_map>
+using namespace std;
+ifstream fin("a.txt");//citire din fiser
+
+
+
+int TT[100], RG[100];
+int find(int);
+void unite(int, int);
+
+
+int main(){
+    int l, n, numberFinalStates;
+
+    unordered_map<int, bool> typeStates;
+    unordered_map<char, bool> language;
+
+    int ntypeStates, start, aux;
+
+    vector<vector<pair<int, char>>> L(100, vector<pair<int, char>>());
+    int subm[100][100];
+
+    fin >> n;
+    fin >> start;
+    fin >> numberFinalStates;
+    while (numberFinalStates--) {
+        fin >> aux;
+        typeStates[aux] = true;
+    }
+
+    int a, b;
+    char c;
+    while (fin >> a >> b >> c) {
+        L[a].push_back({ b, c });
+        language[c] = 1;
+    }
+
+    vector<pair<int, int>> sett;
+
+    for (int i = 1; i <= n; i++) {      //sumbatrice, pas 2
+        for (int j = 1; j < i; j++)
+            if ((typeStates.find(i) != typeStates.end() && typeStates.find(j) != typeStates.end())
+                || ((typeStates.find(i) == typeStates.end() && typeStates.find(j) == typeStates.end()))) {  //daca ambele sunt stari finale sau nu marcam in submatrice cu 1
+                subm[i][j] = 0;
+                sett.push_back({ i, j });       //daca una e finala si una nu, atunci o punem in vectorul "sett" si marcam cu 0 in submatrice
+            }
+            else {
+                subm[i][j] = 1;
+            }
+    }
+
+    bool modify;
+    
+    do { //pasul 3
+
+        modify = 0;
+
+        for (int pairr = 0; pairr < sett.size(); pairr++) { //iteram prin perechi
+
+            int a = sett[pairr].first, b = sett[pairr].second; // perechea sursa din vector pentru care aplic toate elementele din limbaj
+
+            for (auto l : language) {
+                int x= 0, y = 0; // perechea destinatie 
+
+                for(auto i: L[a])
+                    if (i.second == l.first) {
+                        x = i.first;
+                        break;
+                    }
+
+
+                for (auto i : L[b])
+                    if (i.second == l.first) {
+                        y = i.first;
+                        break;
+                    }
+
+
+                if (x < y)
+                    swap(x, y); // cautam in submatrice(deci trebuie sa ne uitam pe pozitia [indiceMic][IndiceMare] ca sa ramanem in jumatatea de sub matrice)
+
+                if (subm[x][y] && x != y) {
+                    modify = 1;
+                    if (a < b)
+                        swap(a, b);
+                    subm[a][b] = 1;
+
+                    sett.erase(sett.begin() + pairr);
+                    pairr--;
+                    break;
+                }
+
+            }
+
+        }
+       
+        
+    } while (modify);
+
+    unordered_map<int, vector<int>> finalAfd;
+
+    for (int i = 1; i <= n; i++)
+    {
+        TT[i] = i;
+        RG[i] = 1;
+    }
+
+    //the remaining pairs with 0 in subm
+    for (auto pairr : sett) 
+        unite(pairr.first, pairr.second);
+
+    unordered_map<int, int> finalAfdpathForEachElement;
+
+    aux = 1;
+    for (int i = 1; i <= n; i++) {
+        finalAfdpathForEachElement[aux] = TT[i];
+        finalAfd[TT[i]].push_back(aux++);
+    }
+    
+    const int dim = finalAfd.size();
+    //pentru afd ul final vom folosi o matrice de dimensiune dim(atatea noduri mai are graful dupa contopire) 
+    char matFinalAfd[100][100];
+
+    for (int i = 1; i <= dim; i++)
+        for (int j = 1; j <= dim; j++)
+            matFinalAfd[i][j] = '-';
+
+
+    for (auto i : finalAfd) {
+        int pilon = i.second[0]; //primul element al fiecarei multimi, i - 1 deoarece map ul le stocheaza de la 0 dar eu am nevoie de la 1 pentru a le oune in matrice
+        for (int k = 1; k <= n; k++)
+
+            for (auto search : L[pilon]) {
+                int path = finalAfdpathForEachElement[search.second]; //multimea finala din care face parte targetElement
+                matFinalAfd[i.first][path] = search.first;
+            }
+    }
+
+    for (int i = 1; i <= dim; i++) {
+        for (int j = 1; j <= dim; j++)
+            cout << matFinalAfd[i][j] << " ";
+        cout << "\n";
+    }
+    cout << "\n\n\n\n";
+
+
+    for (auto i : finalAfd) {
+        for (auto j : i.second)
+            cout << j << " ";
+        cout << "\n";
+    }
+
+}
+
+int find(int x)
+{
+    int R, y;
+
+    //merg in sus pe arbore pana gasesc un nod care pointeaza catre el insusi
+    for (R = x; TT[R] != R; R = TT[R]);
+
+    //aplic compresia drumurilor
+    for (; TT[x] != x;)
+    {
+        y = TT[x];
+        TT[x] = R;
+        x = y;
+    }
+    return R;
+}
+
+void unite(int x, int y)
+{
+    //unesc multimea cu rang mai mic de cea cu rang mai mare
+    if (RG[x] > RG[y])
+        TT[y] = x;
+    else TT[x] = y;
+
+    //in caz ca rangurile erau egale atunci cresc rangul noii multimi cu 1
+    if (RG[x] == RG[y]) RG[y]++;
+}
+
